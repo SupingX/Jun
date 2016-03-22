@@ -1,0 +1,32 @@
+package com.laputa.dialog;
+
+import android.app.Dialog;
+import android.content.Context;
+import android.view.View;
+
+public class LaputaAlertDialog extends AbstractLaputaDialog {
+
+	public LaputaAlertDialog(Context context) {
+		super(context);
+	}
+
+	@Override
+	public View getContentView(Context context) {
+		
+		View view = null;
+		return null;
+	}
+
+	@Override
+	public void getView(View v) {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public Dialog setDialogWindow(Context context, View view) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+}

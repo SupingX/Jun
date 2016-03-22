@@ -1,0 +1,61 @@
+package com.laputa.dialog;
+
+import android.app.Dialog;
+import android.content.Context;
+import android.view.View;
+/**
+ *
+ * @author Administrator
+ *
+ */
+public abstract class AbstractLaputaAlertDialog extends Dialog{
+	private String title;
+	private int icon;
+	private String msg;
+	private String positive;
+	private String negative;
+	
+	
+	public AbstractLaputaAlertDialog(Context context) {
+		super(context);
+		
+		View v = getContextView();
+		
+	}
+
+	private abstract View getContextView();
+
+	public AbstractLaputaAlertDialog(Context context, boolean cancelable,
+			OnCancelListener cancelListener) {
+		super(context, cancelable, cancelListener);
+	}
+
+	public AbstractLaputaAlertDialog(Context context, int theme) {
+		super(context, theme);
+	}
+	
+	public void setMsg(String msg){
+		this.msg = msg;
+	}
+	
+	public static class Builder{
+		private Context context;
+		private String msg;
+		public Builder(Context context){
+			this.context =context;
+		}
+
+		public AbstractLaputaAlertDialog create(){
+			AbstractLaputaAlertDialog dialog = new AbstractLaputaAlertDialog(context);
+			dialog.setMsg(msg);
+			return dialog;
+		}
+		
+		public Builder setMsg(String msg){
+			this.msg = msg;
+			return this; 
+		}
+	}
+	
+
+}

@@ -1,0 +1,209 @@
+package com.mycj.massage.service.laputa;
+
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map.Entry;
+import java.util.Set;
+
+
+
+
+
+
+import android.bluetooth.BluetoothGatt;
+import android.content.Context;
+
+public class XBlueUtils {
+	public static String SHARE_DEVICES = "SHARE_DEVICES";
+	public static String NON_DEVICES = "";
+	public static String SPLIT_REG = ";";
+	public static String SHARE_DEVICE_A = "SHARE_DEVICE_A";
+	public static String SHARE_DEVICE_B = "SHARE_DEVICE_B";
+	public static int TYPE_A = 0x1 ;
+	public static int TYPE_B = 0x10 ;
+
+
+	public static void  saveBlue(Context context ,String address,int type){
+		if (address == null) {
+			return;
+		}
+		String share = "";
+		if (type == TYPE_A) {
+			share = SHARE_DEVICE_A;
+		}else if (type == TYPE_B) {
+			share = SHARE_DEVICE_B;
+		}else{
+			return;
+		}
+		 SharedPreferenceUtil.put(context, share, address);
+	}
+	
+	public static void clearA(Context context ){
+		saveBlue(context,"", TYPE_A);
+	}
+	public static void clearB(Context context ){
+		saveBlue(context,"", TYPE_B);
+	}
+	
+	public static String[] getBlueAB(Context context){
+		String addressA = (String) SharedPreferenceUtil.get(context, SHARE_DEVICE_A, "");
+		String addressB = (String) SharedPreferenceUtil.get(context, SHARE_DEVICE_B, "");
+		return new String[]{addressA ,addressB};
+	}
+	
+	public static String getBlueA(Context context){
+		String addressA = (String) SharedPreferenceUtil.get(context, SHARE_DEVICE_A, "");
+		return addressA;
+	}
+	public static String getBlueB(Context context){
+		String addressB = (String) SharedPreferenceUtil.get(context, SHARE_DEVICE_B, "");
+		return addressB;
+	}
+	
+	public static boolean isExisted(Context context,String address){
+		if (address.equals("")) {
+			return false;
+		}
+		String[] blueAB = getBlueAB(context);
+		for (int i = 0; i < blueAB.length; i++) {
+			if (blueAB.equals(address)) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	
+//	public static void saveBlue(Context context ,String address){
+//		if (address == null) {
+//			return;
+//		}
+//		HashSet<String> blues = getBlues(context);
+//		if (blues!=null && blues.contains(address)) {
+//			return;
+//		}
+//	   StringBuffer sb = new StringBuffer();
+//       String bluesJson = getBluesJson(context); //
+//       if (bluesJson.equals(NON_DEVICES)) {
+//    	   sb.append(address);
+//       }else{
+//    	   sb.append(bluesJson)
+//    	   .append(SPLIT_REG)
+//      		.append(address);
+//       }
+//       SharedPreferenceUtil.put(context, SHARE_DEVICES, sb.toString());
+//	}
+//	
+//	public static void clear(Context context){
+//		 SharedPreferenceUtil.put(context, SHARE_DEVICES, "");
+//	}
+//	
+//	public static String getBluesJson(Context context){
+//		String devicesJson = (String) SharedPreferenceUtil.get(context, SHARE_DEVICES, NON_DEVICES);
+//		return devicesJson;
+//	}
+//	
+//	public static HashSet<String> getBlues(Context context){
+//		HashSet<String> set = new HashSet<String>();
+//		String bluesJson = getBluesJson(context);
+//		if (bluesJson.equals(NON_DEVICES)) {
+//			return null;
+//		}else{
+//			String[] addresses = bluesJson.split(SPLIT_REG);
+//			for (int i = 0; i < addresses.length; i++) {
+//				set.add(addresses[i]);
+//			}
+//		}
+//		return set;
+//	}
+//	
+//	public static int getBluesSize(Context context){
+//		return getBlues(context)==null ? 0 : getBlues(context).size();
+//	}
+//	
+//
+//	
+//	
+	public static String byteToHexString(byte[] bytes) {
+		String result = null;
+		String hex = null;
+		if (bytes != null && bytes.length > 0) {
+			final StringBuilder stringBuilder = new StringBuilder(bytes.length);
+			for (byte byteChar : bytes) {
+				hex = Integer.toHexString(byteChar & 0xFF);
+				if (hex.length() == 1) {
+					hex = '0' + hex;
+				}
+				stringBuilder.append(hex.toUpperCase());
+			}
+			result = stringBuilder.toString();
+		}
+		return result;
+	}
+	
+	public static byte[] hexStringToByte(String data) {
+		byte[] bytes = null;
+		if (data != null) {
+			data = data.toUpperCase();
+			int length = data.length() / 2;
+			char[] dataChars = data.toCharArray();
+			bytes = new byte[length];
+			for (int i = 0; i < length; i++) {
+				int pos = i * 2;
+				bytes[i] = (byte) (charToByte(dataChars[pos]) << 4 | charToByte(dataChars[pos + 1]));
+			}
+		}
+		return bytes;
+	}
+	
+	private static byte charToByte(char c) {
+		return (byte) "0123456789ABCDEF".indexOf(c);
+	}
+	
+//	public static boolean isExist(String addresss,Context context){
+//		HashSet<String> blues = XBlueUtils.getBlues(context);
+//		if (blues != null) {
+//			Iterator<String> iterator = blues.iterator();
+//			while (iterator.hasNext()) {
+//				String address = iterator.next();
+//				if (address.equals(addresss)) {
+//					return true;
+//				}
+//			}
+//		}
+//		return false;
+//	}
+	
+	
+	public static String getStringTime(int second){
+		StringBuffer sb = new StringBuffer();
+		if (second<=60) {
+			sb.append("00:")
+				.append(getDouble(second));
+		}else{
+			int minute = second/60;
+			sb.append(getDouble(minute))
+				.append(":")
+				.append(getDouble(second-minute*60));
+		}
+		return sb.toString();
+	}
+	
+	public static int getIntTime(String time){
+		String[] split = time.split(":");
+		int minute = Integer.valueOf(split[0]);
+		int second = Integer.valueOf(split[1]);
+		return minute * 60 + second;
+	}
+	
+	
+	private static String getDouble(int value){
+		if (value<10) {
+			return "0"+value;
+		}else{
+			return String.valueOf(value);
+		}
+	}
+	
+}

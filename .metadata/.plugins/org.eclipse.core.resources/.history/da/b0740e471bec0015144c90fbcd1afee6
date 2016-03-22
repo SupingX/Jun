@@ -1,0 +1,5 @@
+package com.laputa.blue.broadcast;
+
+public class LaputaBroadcastReceiver {
+
+}

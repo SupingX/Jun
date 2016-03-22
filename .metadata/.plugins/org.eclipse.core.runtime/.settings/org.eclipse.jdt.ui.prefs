@@ -1,0 +1,19 @@
+content_assist_lru_history=<?xml version\="1.0" encoding\="UTF-8" standalone\="no"?><history maxLHS\="100" maxRHS\="10"><lhs name\="com.laputa.blue.core.LaputaBlue"><rhs name\="com.laputa.blue.core.SimpleLaputaBlue"/></lhs><lhs name\="com.laputa.blue.core.AbstractSimpleLaputaBlue"><rhs name\="com.laputa.blue.core.SimpleLaputaBlue"/></lhs><lhs name\="com.laputa.blue.core.Configration"><rhs name\="com.laputa.blue.core.Configration"/></lhs><lhs name\="android.os.Parcelable"><rhs name\="android.content.IntentFilter"/></lhs><lhs name\="android.content.IntentFilter"><rhs name\="android.content.IntentFilter"/></lhs><lhs name\="android.content.BroadcastReceiver"><rhs name\="com.laputa.blue.broadcast.LaputaBroadcastReceiver"/></lhs><lhs name\="com.laputa.blue.broadcast.LaputaBroadcastReceiver"><rhs name\="com.laputa.blue.broadcast.LaputaBroadcastReceiver"/></lhs><lhs name\="android.content.Context"><rhs name\="com.mycj.massage.ui.activity.MassageActivity"/></lhs><lhs name\="com.laputa.dialog.AbstractLaputaDialog"><rhs name\="com.laputa.dialog.LaputaAlert2Dialog"/></lhs><lhs name\="com.laputa.dialog.LaputaAlert2Dialog"><rhs name\="com.laputa.dialog.LaputaAlert2Dialog"/></lhs><lhs name\="java.lang.Cloneable"><rhs name\="java.util.HashMap"/></lhs><lhs name\="java.util.AbstractMap"><rhs name\="java.util.HashMap"/></lhs><lhs name\="java.util.Map"><rhs name\="java.util.HashMap"/></lhs><lhs name\="java.util.HashMap"><rhs name\="java.util.HashMap"/></lhs><lhs name\="com.laputa.bean.ConnectInfo"><rhs name\="com.laputa.bean.ConnectInfo"/></lhs></history>
+content_assist_number_of_computers=13
+content_assist_proposals_background=255,255,255
+content_assist_proposals_foreground=0,0,0
+eclipse.preferences.version=1
+fontPropagated=true
+org.eclipse.jdt.ui.editor.tab.width=
+org.eclipse.jdt.ui.formatterprofiles.version=12
+org.eclipse.jdt.ui.javadoclocations.migrated=true
+org.eclipse.jdt.ui.text.code_templates_migrated=true
+org.eclipse.jdt.ui.text.custom_code_templates=<?xml version\="1.0" encoding\="UTF-8" standalone\="no"?><templates/>
+org.eclipse.jdt.ui.text.custom_templates=<?xml version\="1.0" encoding\="UTF-8" standalone\="no"?><templates/>
+org.eclipse.jdt.ui.text.templates_migrated=true
+org.eclipse.jface.textfont=1|Consolas|12.0|0|WINDOWS|1|-16|0|0|0|400|0|0|0|0|3|2|1|49|Consolas;
+proposalOrderMigrated=true
+spelling_locale_initialized=true
+tabWidthPropagated=true
+useAnnotationsPrefPage=true
+useQuickDiffPrefPage=true

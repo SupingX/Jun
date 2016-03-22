@@ -1,0 +1,70 @@
+package com.laputa.blue.util;
+
+import java.util.HashMap;
+
+import android.content.Context;
+
+public class BondedDeviceUtil {
+	public static final String SHARE_ADDRESS_0 = "SHARE_ADDRESS_01";
+	public static final String SHARE_ADDRESS_01 = "SHARE_ADDRESS_01";
+	public static final String SHARE_ADDRESS_02 = "SHARE_ADDRESS_02";
+	public static final String SHARE_ADDRESS_03 = "SHARE_ADDRESS_03";
+	public static final String SHARE_ADDRESS_04 = "SHARE_ADDRESS_04";
+	public static final String SHARE_ADDRESSES = "SHARE_ADDRESSES";
+	
+	
+	public static void save(int position,String address,Context context){
+		SharedPreferenceUtil.put(context, (SHARE_ADDRESS_0+position), address);
+	
+	}
+	
+	
+	public static String [] getBondedAddresses(Context context){
+		// 格式 地址1，地址2，地址3
+		String json = (String) SharedPreferenceUtil.get(context, SHARE_ADDRESSES, "");
+		try {
+			if (json != null && !json.equals("")) {
+				return  json.split(",");
+			}
+		} catch (Exception e) {
+			return null;
+		}
+		return null;
+	}
+	
+	public static void addAddressOne(Context context,String address){
+		
+		String[] bondedAddresses = getBondedAddresses(context);
+		if (bondedAddresses !=null && bondedAddresses.length>0) {
+			for (int i = 0; i < bondedAddresses.length; i++) {
+				if (bondedAddresses[i].equals(address)) {
+					return;
+				}
+			}
+		}
+		
+		SharedPreferenceUtil.put(context, SHARE_ADDRESSES, address);
+	}
+	
+	public static void addAddress(Context context,String address){
+		String[] bondedAddresses = getBondedAddresses(context);
+		if (bondedAddresses !=null && bondedAddresses.length>0) {
+			for (int i = 0; i < bondedAddresses.length; i++) {
+				if (bondedAddresses[i].equals(address)) {
+					return;
+				}
+			}
+		}
+		
+		// 格式 地址1，地址2，地址3
+		String json = (String) SharedPreferenceUtil.get(context, SHARE_ADDRESSES, "");
+		String result = "";
+		if (json != null && !json.equals("")) {
+			result =json + "," + address;
+		}else{
+			result = json;
+		}
+		
+		SharedPreferenceUtil.put(context, SHARE_ADDRESSES, result);
+	}
+}

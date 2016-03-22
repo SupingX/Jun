@@ -1,0 +1,9 @@
+package com.mycj.massage.service.laputa;
+
+public enum ConnectState {
+	CONNECT,
+	DISCONNECT,
+	CONNECTING,
+	SERVICE_FOUNDED;
+	
+}

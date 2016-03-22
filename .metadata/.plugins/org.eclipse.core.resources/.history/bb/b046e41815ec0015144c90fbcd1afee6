@@ -1,0 +1,5 @@
+package com.mycj.massage.service.laputa;
+
+public interface IBlueService {
+
+}

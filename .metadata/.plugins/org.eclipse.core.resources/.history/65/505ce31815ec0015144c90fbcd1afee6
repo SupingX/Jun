@@ -1,0 +1,614 @@
+package com.mycj.massage.service.laputa;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.UUID;
+
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothGatt;
+import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattDescriptor;
+import android.bluetooth.BluetoothGattService;
+import android.bluetooth.BluetoothManager;
+import android.content.Context;
+import android.content.pm.PackageManager;
+import android.os.AsyncTask;
+import android.os.Handler;
+import android.util.Log;
+
+public class XBlueManager implements IXBlue {
+
+	// public final static int TYPE_ONE=0x01;
+	// public final static int TYPE_MORE = 0x02;
+	// private int type = TYPE_ONE;//1
+	private static XBlueManager xBlue;
+	private Context context;
+	private BluetoothManager mBluetoothManager;
+	private BluetoothAdapter mBluetoothAdapter;
+	private HashMap<String, BluetoothDevice> scanDeviceMap = new HashMap<String, BluetoothDevice>();
+	private int scanState;
+	private HashMap<String, XBlueConnectResult> connectResultsMap = new HashMap<String, XBlueConnectResult>();
+
+	public final static int SCAN_PERIOD = 10 * 1000;
+
+	private Handler mHandler = new Handler() {
+
+	};
+
+	private XBlueManager(Context context) {
+		this.context = context;
+		mBluetoothManager = (BluetoothManager) this.context.getSystemService(Context.BLUETOOTH_SERVICE);
+		mBluetoothAdapter = mBluetoothManager.getAdapter();
+	}
+
+	public static XBlueManager instance(Context context) {
+		if (xBlue == null) {
+			xBlue = new XBlueManager(context);
+
+		}
+		return xBlue;
+	};
+
+	@Override
+	public BluetoothManager getBluetoothManager() {
+		return this.mBluetoothManager;
+	}
+
+	@Override
+	public BluetoothAdapter getBluetoothAdapter() {
+		return this.mBluetoothAdapter;
+	}
+
+	@Override
+	public boolean isSupportBle() {
+		if (!context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
+			XBlueBroadcastUtils.instance().sendBroadcastDoNotSupportBle(context);
+			return false;
+		} else {
+			return true;
+		}
+
+	}
+
+	@Override
+	public boolean isBluetoothAdapterEnable() {
+
+		if (mBluetoothAdapter == null || !mBluetoothAdapter.isEnabled()) {
+			XBlueBroadcastUtils.instance().sendBroadcastBluetoothAdapterDisable(context);
+			return false;
+		} else {
+			return true;
+		}
+
+	}
+
+	@Override
+	public void enableBluetooth() {
+		// Intent intent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+		// context.startActivity(intent);
+		if (isSupportBle()) {
+			mBluetoothAdapter.enable();
+		}
+	}
+
+	public void removeBonded() {
+	}
+
+	public void startScan() {
+		if (!isSupportBle()) {
+			XBlueBroadcastUtils.instance().sendBroadcastDoNotSupportBle(context);
+			return;
+		}
+		if (!isBluetoothAdapterEnable()) {
+			XBlueBroadcastUtils.instance().sendBroadcastBluetoothAdapterDisable(context);
+			return;
+		}
+		scanDevice(true);
+
+	}
+
+	public void stopScan() {
+		scanDevice(false);
+	}
+
+	private XBlueLeScanCallback leScanCallback = new XBlueLeScanCallback() {
+		@Override
+		public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord) {
+			super.onLeScan(device, rssi, scanRecord);
+
+			if (!scanDeviceMap.containsKey(device.getAddress())) {
+				scanDeviceMap.put(device.getAddress(), device);
+				printDevice();
+				String[] blueAB = XBlueUtils.getBlueAB(context);
+				for (int i = 0; i < blueAB.length; i++) {
+					String address = blueAB[i];
+					if (address.equals(device.getAddress())) {
+						if (!isConnected(address)) {
+							XLog.sys("=========开始链接==============");
+							connect(device);
+						}
+					}
+				}
+				XBlueBroadcastUtils.instance().sendBroadcastDeviceFound(context, getDevicesFromMap());
+			} else {
+				XLog.sys("=====地址已存在蓝牙列表中------");
+			}
+
+			//
+			if (mXBlueManagerListener != null) {
+				mXBlueManagerListener.doDeviceFound(scanDeviceMap);
+			}
+		}
+	};
+
+	private XBluetoothGattCallBack connectCallback = new XBluetoothGattCallBack() {
+		@Override
+		public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
+			byte[] value = characteristic.getValue();
+			XLog.sys("onCharacteristicChanged() -->地址：" + gatt.getDevice().getAddress() + ",数据：" + XBlueUtils.byteToHexString(value));
+			if (mXBlueManagerListener != null) {
+				mXBlueManagerListener.doCharacticChanged(gatt, characteristic);
+			}
+			super.onCharacteristicChanged(gatt, characteristic);
+		}
+
+		@Override
+		public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+			if (status == BluetoothGatt.GATT_SUCCESS) {
+				byte[] value = characteristic.getValue();
+				XLog.sys("onCharacteristicWrite() --> 地址：" + gatt.getDevice().getAddress() + ",数据：" + XBlueUtils.byteToHexString(value));
+			} else {
+				XLog.sys("onCharacteristicWrite() --> ʧ�ܣ�");
+			}
+
+			super.onCharacteristicWrite(gatt, characteristic, status);
+		}
+
+		@Override
+		public void onConnectionStateChange(final BluetoothGatt gatt, final int status, final int newState) {
+			
+			Log.e("xpl", "onConnectionStateChange() 回调");
+			mHandler.post(new Runnable() {
+				@Override
+				public void run() {
+					if (gatt==null) {
+						Log.e("xpl", "gatt : 为空 ");
+						return ;
+					}
+					String address = gatt.getDevice().getAddress();
+					XBlueConnectResult result = getXBlueConnectResultByAddress(address);
+					if (status == BluetoothGatt.GATT_SUCCESS) {
+						if (newState == BluetoothGatt.STATE_CONNECTED) {
+							XLog.sys("## onConnectionStateChange() --> 【已连接】");
+							if (result != null) {
+								result.setConnectState(ConnectState.CONNECT);
+								connectResultsMap.put(address, result);
+							}
+							XBlueBroadcastUtils.instance().sendBroadcastConnected(context, gatt.getDevice());
+
+							gatt.discoverServices();
+						} else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
+							XLog.sys("##　onConnectionStateChange() --> " + address + "【断开】" + connectResultsMap.size());
+							if (result != null) {
+								result.close();
+								connectResultsMap.remove(address);
+							}
+							XBlueBroadcastUtils.instance().sendBroadcastDisConnected(context, gatt.getDevice());
+							if (mXBlueManagerListener != null) {
+								mXBlueManagerListener.doDisconnected();
+							}
+							getSizeFromMapWhenConnectStateAtServiceFound();
+							if (!isAllConnected()) {
+								startScan();
+							}
+
+						}
+					} else {
+					}
+				}
+			});
+
+			super.onConnectionStateChange(gatt, status, newState);
+		}
+
+		@Override
+		public void onServicesDiscovered(BluetoothGatt gatt, int status) {
+			super.onServicesDiscovered(gatt, status);
+			if (status == BluetoothGatt.GATT_SUCCESS) {
+				XLog.sys("## onServicesDiscovered() ##  --> 成功");
+				parseGatt(gatt);
+			} else {
+
+				XLog.sys("## onServicesDiscovered() ##  --> 失败");
+			}
+		}
+
+	};
+
+	// private BluetoothGatt
+
+	@Override
+	public void scanDevice(boolean enable) {
+		if (!isSupportBle()) {
+			return;
+		}
+		scanDeviceMap.clear();
+		if (enable) {
+			scanState = SCAN_STATE_START;
+			mBluetoothAdapter.stopLeScan(leScanCallback);
+			mHandler.postDelayed(new Runnable() {
+
+				@Override
+				public void run() {
+					mBluetoothAdapter.startLeScan(leScanCallback);
+				}
+			}, 1000);
+		} else {
+			mBluetoothAdapter.stopLeScan(leScanCallback);
+			scanState = SCAN_STATE_STOP;
+
+		}
+	}
+
+	@Override
+	public void scanDevice(UUID[] serviceUuids, boolean enable) {
+
+	}
+
+	@Override
+	public int getScanningState() {
+		return scanState;
+	}
+
+	@Override
+	public void connect(BluetoothDevice device) {
+		if (device == null) {
+			return;
+		}
+
+		int size = getSizeFromMapWhenConnectStateAtServiceFound();
+		if (size >= 2) {
+			return;
+		}
+
+		XBlueConnectResult oldResult = getXBlueConnectResultByAddress(device.getAddress());
+		if (oldResult != null) {
+			oldResult.close();
+			connectResultsMap.remove(oldResult);
+		}
+
+		BluetoothGatt gatt = device.connectGatt(context, false, connectCallback);
+		XBlueConnectResult result = new XBlueConnectResult(connectCallback, gatt, device.getAddress());
+		result.setConnectState(ConnectState.CONNECTING);// ����״̬
+		this.connectResultsMap.put(device.getAddress(), result);
+		laputa("##  链接后　connectResultsList大小 : ##" + size + " ");
+
+	}
+
+	@Override
+	public void connect(String address) {
+	}
+
+	@Override
+	public void close(BluetoothGatt gatt) {
+
+	}
+
+	public void close(String address) {
+		XBlueConnectResult result = connectResultsMap.get(address);
+		if (result != null) {
+			result.close();
+			this.connectResultsMap.remove(result);
+		}
+	}
+
+	@Override
+	public void closeAll() {
+		if (connectResultsMap.size() == 0) {
+			return;
+		}
+		Set<Entry<String, XBlueConnectResult>> entrySet = connectResultsMap.entrySet();
+		Iterator<Entry<String, XBlueConnectResult>> iterator = entrySet.iterator();
+		while (iterator.hasNext()) {
+			Entry<String, XBlueConnectResult> next = iterator.next();
+			XBlueConnectResult result = next.getValue();
+			result.close();
+		}
+		connectResultsMap.clear();
+		scanDeviceMap.clear();
+	}
+
+	@Override
+	public void writeCharacteristic(BluetoothGatt gatt, byte[] order) {
+		if (gatt == null) {
+			return;
+		}
+		BluetoothGattService service = gatt.getService(UUID.fromString(UUID_SERVICE));
+		BluetoothGattCharacteristic characteristic = service.getCharacteristic(UUID.fromString(UUID_CHARACTERISTIC_WRITE));
+		characteristic.setValue(order);
+		gatt.writeCharacteristic(characteristic);
+	}
+
+	public void writeChacteristic(String address, byte[] order) {
+		if (address == null || address.equals("")) {
+			return;
+		}
+		XBlueConnectResult result = getXBlueConnectResultByAddress(address);
+
+		if (result != null) {
+			BluetoothGatt gatt = result.getGatt();
+			ConnectState connectState = result.getConnectState();
+			if (connectState == ConnectState.SERVICE_FOUNDED) {
+				laputa(address + "-----写数据------");
+				this.writeCharacteristic(gatt, order);
+			}
+		} else {
+			laputa(address + "-----未连接------");
+		}
+
+	}
+
+	public void writeChacteristicAll(byte[][] order) {
+		// new WriteAsyncTaskForA().execute(order);
+		// new WriteAsyncTaskForB().execute(order);
+
+		String[] blueAB = XBlueUtils.getBlueAB(context);
+		new WriteAllAsyncTask(blueAB).execute(order);
+		// for (int i = 0; i < order.length; i++) {
+		// writeChacteristic(blueAB[0], order[i]);
+		// }
+		// for (int i = 0; i < order.length; i++) {
+		// writeChacteristic(blueAB[1], order[i]);
+		// }
+	}
+
+	private class WriteAsyncTaskForA extends AsyncTask<byte[], Void, Void> {
+
+		@Override
+		protected Void doInBackground(byte[]... params) {
+			try {
+				String blueA = XBlueUtils.getBlueA(context);
+				if (!blueA.equals("")) {
+					byte[] bs = params[0];
+					// for (int i = 0; i < bs.length; i++) {
+					// Thread.sleep(3000);
+					writeChacteristic(blueA, bs);
+					// }
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			return null;
+		}
+	}
+
+	private class WriteAsyncTaskForB extends AsyncTask<byte[], Void, Void> {
+		@Override
+		protected Void doInBackground(byte[]... params) {
+			try {
+				String blueB = XBlueUtils.getBlueB(context);
+				if (!blueB.equals("")) {
+					byte[] bs = params[0];
+					// for (int i = 0; i < bs.length; i++) {
+					// Thread.sleep(3000);
+					writeChacteristic(blueB, bs);
+					// }
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			return null;
+		}
+	}
+
+	private class WriteAllAsyncTask extends AsyncTask<byte[][], Void, Void> {
+		private String[] addresses;
+
+		public WriteAllAsyncTask(String[] addresses) {
+			this.addresses = addresses;
+		}
+
+		@Override
+		protected Void doInBackground(byte[][]... params) {
+			byte[][] bs = params[0];
+			for (int i = 0; i < bs.length; i++) {
+				try {
+					for (int j = 0; j < addresses.length; j++) {
+						if (!addresses[j].equals("")) {
+							Thread.sleep(1000);
+							writeChacteristic(addresses[j], bs[i]);
+						}
+					}
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+			return null;
+		}
+
+	}
+
+	private void printDevice() {
+		if (scanDeviceMap != null) {
+			int size = scanDeviceMap.size();
+			laputa("##  scanDeviceMap大小 : ##" + size + " ");
+			if (size > 0) {
+				Set<Entry<String, BluetoothDevice>> entrySet = scanDeviceMap.entrySet();
+				Iterator<Entry<String, BluetoothDevice>> iterator = entrySet.iterator();
+				while (iterator.hasNext()) {
+					Entry<String, BluetoothDevice> next = iterator.next();
+					laputa(next.getKey());
+				}
+			}
+		}
+	}
+
+	/**
+	 * �ҳ�gatt��Ӧ��XBlueConnectResult
+	 * 
+	 * @return
+	 */
+	public XBlueConnectResult getXBlueConnectResultByAddress(String address) {
+
+		return connectResultsMap.get(address);
+	}
+
+	private ArrayList<BluetoothDevice> getDevicesFromMap() {
+		ArrayList<BluetoothDevice> devices = null;
+		if (scanDeviceMap != null) {
+			int size = scanDeviceMap.size();
+			laputa("##  scanDeviceMap大小 : ##" + size + " ");
+			if (size > 0) {
+				devices = new ArrayList<BluetoothDevice>();
+				Set<Entry<String, BluetoothDevice>> entrySet = scanDeviceMap.entrySet();
+				Iterator<Entry<String, BluetoothDevice>> iterator = entrySet.iterator();
+				while (iterator.hasNext()) {
+					Entry<String, BluetoothDevice> next = iterator.next();
+					devices.add(next.getValue());
+				}
+			}
+		}
+		return devices;
+	}
+
+	public interface XBlueManagerListener {
+		public void doDeviceFound(HashMap<String, BluetoothDevice> scanDeviceMap);
+
+		public void doDisconnected();
+
+		public void doCharacticChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic);
+
+		public void doServiceDiscovery(BluetoothGatt gatt);
+	}
+
+	private XBlueManagerListener mXBlueManagerListener;
+
+	public void setXBlueManagerListener(XBlueManagerListener l) {
+		this.mXBlueManagerListener = l;
+	}
+
+	@Override
+	public int getConnectState(BluetoothDevice device) {
+		return 0;
+	}
+
+	public boolean isConnected(String address) {
+		XBlueConnectResult result = connectResultsMap.get(address);
+		if (result == null) {
+			return false;
+		}
+		if (result.getConnectState() == ConnectState.SERVICE_FOUNDED) {
+			return true;
+		} else {
+			return false;
+		}
+
+	}
+
+	public boolean isAllConnected() {
+		String blueA = XBlueUtils.getBlueA(context);
+		String blueB = XBlueUtils.getBlueB(context);
+//		if (blueA == null  && blueB == null) {
+//			return true;
+//		}
+//		if (blueA == null && blueB != null ) {
+//			return isConnected(blueB);
+//		}
+//		
+//		if (blueA != null && blueB == null) {
+//			return isConnected(blueA);
+//		}
+		boolean is = (blueA==null?true:isConnected(blueA)) && (blueB==null?true:isConnected(blueB));
+		laputa("##  是否都已经链接 : ##" + is + " ");
+		return is;
+	}
+
+	private void parseGatt(BluetoothGatt gatt) {
+		stopScan();
+		String address = gatt.getDevice().getAddress();
+		XBlueConnectResult result = getXBlueConnectResultByAddress(address);
+		BluetoothGattService service = gatt.getService(UUID.fromString(UUID_SERVICE));
+		if (service != null) {
+			BluetoothGattCharacteristic characteristicNotify = service.getCharacteristic(UUID.fromString(UUID_CHARACTERISTIC_NOTIFY));
+			BluetoothGattCharacteristic characteristicWrite = service.getCharacteristic(UUID.fromString(UUID_CHARACTERISTIC_WRITE));
+			if (characteristicNotify != null && characteristicWrite != null) {
+				characteristicWrite.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE);
+				gatt.setCharacteristicNotification(characteristicNotify, true);
+				BluetoothGattDescriptor descriptor = characteristicNotify.getDescriptor(UUID.fromString(UUID_DESC_CCC));
+				if (descriptor != null) {
+					laputa("## 已找到服务 ##");
+					descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+					gatt.writeDescriptor(descriptor);
+					result.setConnectState(ConnectState.SERVICE_FOUNDED);
+					connectResultsMap.put(address, result);
+					getSizeFromMapWhenConnectStateAtServiceFound();
+					if (mXBlueManagerListener != null) {
+						mXBlueManagerListener.doServiceDiscovery(gatt);
+					}
+					if (isAllConnected()) {
+						stopScan();
+					} else {
+						startScan();
+					}
+					XBlueBroadcastUtils.instance().sendBroadcastServiceDiscovered(context, gatt.getDevice());
+				} else {
+					laputa("## 未找到服务 ##");
+					if (result != null) {
+						result.close();
+						connectResultsMap.remove(address);
+					}
+					if (!isAllConnected()) {
+						startScan();
+					}
+
+				}
+			} else {
+				laputa("## 未找到服务 ##");
+				if (result != null) {
+					result.close();
+					connectResultsMap.remove(address);
+				}
+				if (!isAllConnected()) {
+					startScan();
+				}
+			}
+		} else {
+			laputa("## 未找到服务 ##");
+			if (result != null) {
+				result.close();
+				connectResultsMap.remove(address);
+			}
+			if (!isAllConnected()) {
+				startScan();
+			}
+		}
+	}
+
+	private void laputa(String msg) {
+		android.util.Log.e("XBlueManager", msg);
+	}
+
+	public int getSizeFromMapWhenConnectStateAtServiceFound() {
+		int size = 0;
+		if (connectResultsMap.size() == 0) {
+			return size;
+		}
+
+		Set<Entry<String, XBlueConnectResult>> entrySet = connectResultsMap.entrySet();
+		Iterator<Entry<String, XBlueConnectResult>> iterator = entrySet.iterator();
+		while (iterator.hasNext()) {
+			Entry<String, XBlueConnectResult> next = iterator.next();
+			XBlueConnectResult result = next.getValue();
+			if (result.getConnectState() == ConnectState.SERVICE_FOUNDED) {
+				size++;
+			}
+		}
+		laputa("## 已连接服务大小 ##" + size);
+		return size;
+	}
+
+}

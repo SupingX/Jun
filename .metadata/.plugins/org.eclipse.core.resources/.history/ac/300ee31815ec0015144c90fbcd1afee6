@@ -1,0 +1,7 @@
+package com.mycj.massage.service.laputa;
+
+public class XLog {
+	public static void sys(String msg){
+		System.out.println(msg);
+	}
+}

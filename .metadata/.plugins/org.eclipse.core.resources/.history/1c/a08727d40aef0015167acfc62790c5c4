@@ -1,0 +1,79 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_laputa_alert_dialog"
+    android:orientation="vertical"
+    android:paddingTop="12dp"
+    android:paddingBottom="12dp"
+    android:paddingLeft="12dp"
+    android:paddingRight="12dp"
+    android:gravity="center"
+    tools:context="${relativePackage}.${activityClass}" >
+
+    <TextView
+        android:id="@+id/tv_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:gravity="center"
+        android:text="标题"
+        android:textColor="#037BFF"
+        android:textSize="14sp" />
+    <FrameLayout 
+        android:layout_height="wrap_content"
+        android:layout_width="wrap_content"
+        android:layout_gravity="center"
+        android:id="@+id/fl_content"
+        >
+         <TextView
+        android:id="@+id/tv_msg"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:gravity="center"
+        android:text="内容"
+        android:textColor="#037BFF"
+        android:textSize="14sp" />
+    </FrameLayout>
+    
+    <LinearLayout 
+        android:layout_height="wrap_content"
+        android:layout_width="match_parent"
+        android:orientation="horizontal"
+        >
+        
+             <TextView
+                        android:background="@drawable/selector_bg_confirm"
+                    android:layout_weight="1"
+        android:id="@+id/tv_cancel"
+        android:layout_width="wrap_content"
+            android:layout_height="36dp"
+        android:layout_gravity="center"
+        android:gravity="center"
+        android:text="取消"
+        
+        android:clickable="true"
+        android:textColor="#037BFF"
+        android:textSize="14sp" />
+             
+             <View android:layout_height="48dp"
+                 android:layout_width="20dp"
+                 
+                 />
+                  <TextView
+                          android:clickable="true"
+                      android:background="@drawable/selector_bg_confirm"
+        android:id="@+id/tv_confirm"
+        android:layout_width="wrap_content"
+              android:layout_height="36dp"
+        android:layout_gravity="center"
+        android:gravity="center"
+        android:layout_weight="1"
+        android:text="确定"
+
+        android:textColor="#037BFF"
+        android:textSize="14sp" />
+    </LinearLayout>
+    
+</LinearLayout>

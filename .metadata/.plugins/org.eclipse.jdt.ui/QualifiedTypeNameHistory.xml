@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<qualifiedTypeNameHistroy>
+<fullyQualifiedTypeName name="android.widget.Toast"/>
+<fullyQualifiedTypeName name="com.mycj.beasun.ui.activity.CustomMassageModelActivity"/>
+<fullyQualifiedTypeName name="android.app.Service"/>
+<fullyQualifiedTypeName name="com.laputa.blue.core.Configration"/>
+<fullyQualifiedTypeName name="com.laputa.blue.core.OnBlueChangedListener"/>
+<fullyQualifiedTypeName name="java.util.List"/>
+<fullyQualifiedTypeName name="com.laputa.blue.broadcast.LaputaBroadcastReceiver"/>
+<fullyQualifiedTypeName name="com.laputa.blue.core.AbstractSimpleLaputaBlue"/>
+<fullyQualifiedTypeName name="com.laputa.blue.broadcast.LaputaBroadcast"/>
+<fullyQualifiedTypeName name="com.laputa.blue.util.LaputaUtils"/>
+<fullyQualifiedTypeName name="com.mycj.massage.ui.activity.MassageActivity"/>
+<fullyQualifiedTypeName name="android.graphics.Bitmap"/>
+<fullyQualifiedTypeName name="com.mycj.massage.view.AlertDialog"/>
+<fullyQualifiedTypeName name="com.laputa.dialog.LaputaAlert2Dialog"/>
+<fullyQualifiedTypeName name="com.mycj.massage.R.layout"/>
+<fullyQualifiedTypeName name="com.laputa.dialog.AbstractLaputaDialog"/>
+<fullyQualifiedTypeName name="android.content.DialogInterface.OnClickListener"/>
+<fullyQualifiedTypeName name="android.view.View.OnClickListener"/>
+<fullyQualifiedTypeName name="android.graphics.Color"/>
+<fullyQualifiedTypeName name="android.nfc.Tag"/>
+<fullyQualifiedTypeName name="com.mycj.massage.util.TimeUtil"/>
+<fullyQualifiedTypeName name="com.mycj.massage.service.laputa.BlueService"/>
+<fullyQualifiedTypeName name="com.mycj.massage.service.XBlueBroadcastReceiver"/>
+<fullyQualifiedTypeName name="com.mycj.massage.service.laputa.XBlueBroadcastUtils"/>
+<fullyQualifiedTypeName name="com.laputa.blue.util.BondedDeviceUtil"/>
+<fullyQualifiedTypeName name="java.util.HashMap"/>
+<fullyQualifiedTypeName name="android.bluetooth.BluetoothGatt"/>
+<fullyQualifiedTypeName name="com.laputa.bean.ConnectInfo"/>
+<fullyQualifiedTypeName name="android.content.BroadcastReceiver"/>
+<fullyQualifiedTypeName name="android.view.View.OnCreateContextMenuListener"/>
+<fullyQualifiedTypeName name="android.content.IntentFilter"/>
+<fullyQualifiedTypeName name="android.bluetooth.BluetoothAdapter"/>
+<fullyQualifiedTypeName name="com.mycj.massage.util.DataUtil"/>
+<fullyQualifiedTypeName name="java.lang.Runnable"/>
+<fullyQualifiedTypeName name="com.suping.i2_watch.util.DataUtil"/>
+<fullyQualifiedTypeName name="android.bluetooth.BluetoothProfile"/>
+<fullyQualifiedTypeName name="com.laputa.blue.core.SimpleLaputaBlue"/>
+<fullyQualifiedTypeName name="com.laputa.blue.util.XLog"/>
+<fullyQualifiedTypeName name="com.mycj.massage.bean.ProtoclWrite"/>
+</qualifiedTypeNameHistroy>

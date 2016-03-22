@@ -1,0 +1,479 @@
+package com.laputa.blue.core;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.UUID;
+
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothClass;
+import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothGatt;
+import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattDescriptor;
+import android.bluetooth.BluetoothGattService;
+import android.bluetooth.BluetoothProfile;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.nfc.Tag;
+import android.os.Handler;
+import android.util.Log;
+import android.view.View.OnCreateContextMenuListener;
+
+import com.laputa.bean.ConnectInfo;
+import com.laputa.blue.broadcast.LaputaBroadcast;
+import com.laputa.blue.util.BondedDeviceUtil;
+import com.laputa.blue.util.XLog;
+
+public class SimpleLaputaBlue extends AbstractSimpleLaputaBlue {
+	private final String TAG = SimpleLaputaBlue.class.getSimpleName();
+	private ArrayList<BluetoothDevice> scanDevices = new ArrayList<BluetoothDevice>();
+	private HashMap<String, ConnectInfo> connectResults = new HashMap<String, ConnectInfo>();
+	private HashMap<String, BluetoothGatt> connGatts = new HashMap<String, BluetoothGatt>();
+
+	public void clearConnectMap() {
+		connectResults.clear();
+	}
+
+	private OnBlueChangedListener mOnBlueChangedListener;
+	// protected HashMap<String,BluetoothDevice> scanDevices = new
+	// HashMap<String, BluetoothDevice>();
+
+	private static final int SCAN_DEFF = 12 * 1000;
+
+	private Handler mHandler = new Handler() {
+
+	};
+
+	private Runnable scanTask = new Runnable() {
+		@Override
+		public void run() {
+			scanDevice(true);
+			mHandler.postDelayed(new Runnable() {
+				@Override
+				public void run() {
+					mHandler.removeCallbacks(scanTask);
+					// 发送广播，当前时间段发现的设备
+					LaputaBroadcast.sendBroadcastForDevicesFound(scanDevices,
+							mContext);
+					// 断线重新连接
+					reconnect(scanDevices);
+					// 清空设备列表
+					scanDevices.clear();
+					// 判断是否都连接
+					if (!isAllConnected()) {
+						XLog.d(SimpleLaputaBlue.class, "未全部连接成功，继续扫描...");
+						scanDevice(false);
+						mHandler.postDelayed(scanTask, 4000);
+					}
+				}
+
+			}, SCAN_DEFF);
+
+		}
+	};
+	private boolean scanning;
+
+	public SimpleLaputaBlue(Context context) {
+		this(context, new Configration());
+	}
+
+	public SimpleLaputaBlue(Context context, Configration configration) {
+		this(context, configration, null);
+	}
+
+	public SimpleLaputaBlue(Context context, Configration configration,
+			OnBlueChangedListener l) {
+		super(context);
+		this.configration = configration;
+		this.mOnBlueChangedListener = l;
+		// if (isEnable()) {
+		mHandler.post(scanTask);
+		// }
+	}
+
+	public SimpleLaputaBlue(Context context, OnBlueChangedListener l) {
+		this(context, new Configration(), l);
+
+	}
+
+	@Override
+	public synchronized void connect(BluetoothDevice device) {
+
+		if (device == null) {
+			XLog.e("========connect===============device 为空null");
+			return;
+		}
+		String address = device.getAddress();
+
+		removeDevice(address);
+
+		XLog.e("========开始连接==========" + address + "=====");
+		ConnectInfo connectInfo = connectResults.get(address);
+
+		if (connectInfo == null) {
+			BluetoothGatt connectGatt = device.connectGatt(mContext, false,
+					gattCallBack);
+			connectInfo = new ConnectInfo(connectGatt, address,
+					BluetoothProfile.STATE_DISCONNECTED);
+		} else {
+			BluetoothGatt gatt = connectInfo.getGatt();
+			if (address.equals(gatt.getDevice().getAddress())) {
+				gatt.connect();
+				connectInfo = new ConnectInfo(gatt, address,
+						BluetoothProfile.STATE_DISCONNECTED);
+			} else {
+				BluetoothGatt connectGatt = device.connectGatt(mContext, false,
+						gattCallBack);
+				connectInfo = new ConnectInfo(connectGatt, address,
+						BluetoothProfile.STATE_DISCONNECTED);
+			}
+		}
+
+		XLog.e("========开始连接时的=======connectInfo===" + connectInfo + "=====");
+		XLog.e("========开始连接时的=======address===" + address + "=====");
+		connectResults.put(address, connectInfo);
+		print();
+	}
+
+	private void print() {
+		Set<Entry<String, ConnectInfo>> entrySet = connectResults.entrySet();
+		Iterator<Entry<String, ConnectInfo>> iterator = entrySet.iterator();
+		while (iterator.hasNext()) {
+			Entry<String, ConnectInfo> next = iterator.next();
+			String key = next.getKey();
+			ConnectInfo value = next.getValue();
+			XLog.i(SimpleLaputaBlue.class, "==address :" + key
+					+ ",ConnectInfo :" + value + "/n");
+		}
+	}
+
+	@Override
+	protected void onBeginConnect(BluetoothDevice device, BluetoothGatt gatt) {
+		/*
+		 * String address = device.getAddress(); // 添加绑定地址 //
+		 * BondedDeviceUtil.addAddressOne(mContext, address);
+		 * 
+		 * // 将这个连接信息result添加进连接设备的列表 removeDevice(address);
+		 * 
+		 * ConnectInfo result = new ConnectInfo(gatt, address,
+		 * BluetoothProfile.STATE_DISCONNECTED); XLog.e("onBeginConnect 的Gatt ："
+		 * + result.getGatt()); connectResults.put(address, result);
+		 */
+	}
+
+	@Override
+	protected void doCharacteristicChanged(BluetoothGatt gatt,
+			BluetoothGattCharacteristic characteristic) {
+		if (mOnBlueChangedListener != null) {
+			String address = gatt.getDevice().getAddress();
+			byte[] value = characteristic.getValue();
+			mOnBlueChangedListener.onCharacteristicChanged(address, value);
+		}
+	}
+
+	@Override
+	protected void doServicesDiscovered(BluetoothGatt gatt, int status) {
+		String address = gatt.getDevice().getAddress();
+		if (status == BluetoothGatt.GATT_SUCCESS) {
+			BluetoothGattService service = gatt.getService(UUID
+					.fromString(configration.UUID_SERVICE));
+			if (service != null) {
+				// 更新connectResults的值。
+				if (connectResults.containsKey(address)) {
+					ConnectInfo result = connectResults.get(address);
+					XLog.e("_____doServicesDiscovered 时的Gatt ："
+							+ result.getGatt());
+					if (result != null) {
+						result.setState(STATE_SERVICE_DISCOVERED);
+					}
+				}
+
+				// 设置service
+				BluetoothGattCharacteristic characteristicWrite = service
+						.getCharacteristic(UUID
+								.fromString(configration.UUID_CHARACTERISTIC_WRITE));
+				BluetoothGattCharacteristic characteristicNotify = service
+						.getCharacteristic(UUID
+								.fromString(configration.UUID_CHARACTERISTIC_NOTIFY));
+				if (characteristicWrite != null && characteristicNotify != null) {
+					characteristicWrite
+							.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE);
+
+					gatt.setCharacteristicNotification(characteristicNotify,
+							true);
+					BluetoothGattDescriptor descriptor = characteristicNotify
+							.getDescriptor(UUID
+									.fromString(configration.UUID_DESC_CCC));
+					if (descriptor != null) {
+						descriptor
+								.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+						gatt.writeDescriptor(descriptor);
+						print();
+						// 发送通知
+						LaputaBroadcast.sendBroadcastForStateChanged(address,
+								STATE_SERVICE_DISCOVERED, mContext);
+						// 回调，由service来实现 。
+						if (mOnBlueChangedListener != null) {
+							mOnBlueChangedListener.onServiceDiscovered(address);
+						}
+					} else {
+						XLog.e("无法匹配descriptor！");
+						removeDevice(address);
+					}
+				} else {
+					XLog.e("无法匹配characteristicNotify characteristicWrite！");
+					removeDevice(address);
+				}
+
+			} else {
+				XLog.e("无法匹配设备！");
+				removeDevice(address);
+			}
+		} else {
+			XLog.e("查找服务失败！discoverServices() Fail !");
+			removeDevice(address);
+		}
+	}
+
+	@Override
+	protected void doConnectionStateChange(BluetoothGatt gatt, int status,
+			int newState) {
+		XLog.e("连接信息：doConnectionStateChange" + "--status:" + status
+				+ ",newState:" + newState);
+		final String address = gatt.getDevice().getAddress();
+		if (status == BluetoothGatt.GATT_SUCCESS) {
+			if (newState == BluetoothProfile.STATE_CONNECTED) {
+				gatt.discoverServices();
+			} else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+				removeDevice(address);
+			}
+
+			XLog.e(" newState : [" + newState + "]  0:断开 ；2：连接");
+			LaputaBroadcast.sendBroadcastForStateChanged(address, newState,
+					mContext);
+		} else {
+			XLog.e("获取连接state失败");
+			removeDevice(address);
+			LaputaBroadcast.sendBroadcastForStateChanged(address,
+					BluetoothProfile.STATE_DISCONNECTED, mContext);
+		}
+	}
+
+	@Override
+	public void scanDevice(boolean status) {
+		if (isEnable()) {
+			mAdapter.stopLeScan(scanCallBack);
+			scanning = false;
+			if (status) {
+				mAdapter.startLeScan(scanCallBack);
+				scanning = status;
+			}
+			LaputaBroadcast.sendBroadcastForIsScanning(scanning, mContext);
+		} else {
+			XLog.d(TAG, "scanDevice() -- 蓝牙不可用");
+		}
+	}
+
+	@Override
+	public void onScanResult(BluetoothDevice device, int rssi, byte[] scanRecord) {
+		// LaputaBroadcast.sendBroadcastForDeviceFound(device, mContext);
+		if (!scanDevices.contains(device)) {
+			scanDevices.add(device);
+		}
+	}
+
+	@Override
+	public void write(String address, byte[] value) {
+		
+		print();
+		
+		if (connectResults.containsKey(address)) {
+			ConnectInfo connectInfo = connectResults.get(address);
+			if (connectInfo != null){
+					if( connectInfo.getState() == STATE_SERVICE_DISCOVERED) {
+						BluetoothGatt gatt = connectInfo.getGatt();
+						XLog.e("SimpleLaputaBlue", "-->写数据 gatt :" + gatt);
+						BluetoothGattCharacteristic characteristic = getBluetoothGattCharacteristic(gatt);
+						XLog.e("SimpleLaputaBlue", "-->写数据 characteristic :"
+								+ characteristic);
+						if (characteristic != null) {
+							// characteristic.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE);
+							characteristic.setValue(value);
+							gatt.writeCharacteristic(characteristic);
+						} else {
+							XLog.d("SimpleLaputaBlue", address + "-->写数据异常");
+						}
+					}
+			} else {
+				XLog.d("SimpleLaputaBlue", "-->不存在这个地址的connectInfo ："
+						+ connectInfo);
+			}
+		} else {
+			XLog.d("SimpleLaputaBlue", "-->不存在这个地址的address ：" + address);
+		}
+
+	}
+
+	@Override
+	public void write(String address, byte[][] values) {
+
+		// if (connectResults.containsKey(address)) {
+		// ConnectInfo connectInfo = connectResults.get(address);
+		// BluetoothGatt gatt = connectInfo.getGatt();
+		// BluetoothGattCharacteristic characteristic =
+		// getBluetoothGattCharacteristic(gatt);
+		// if (characteristic != null) {
+		// gatt.beginReliableWrite();
+		// try {
+		// for (int i = 0; i < values.length; i++) {
+		// characteristic.setValue(values[i]);
+		// gatt.writeCharacteristic(characteristic);
+		// XLog.e("写values" + i);
+		// }
+		// } catch (Exception e) {
+		// gatt.abortReliableWrite();
+		// }
+		// gatt.executeReliableWrite();
+		// } else {
+		// XLog.e("SimpleLaputaBlue", address + "-->写数据异常");
+		// }
+		// }
+	}
+
+	@Override
+	public void close(String address) {
+		if (connectResults.containsKey(address)) {
+			ConnectInfo connectInfo = connectResults.get(address);
+			BluetoothGatt gatt = connectInfo.getGatt();
+			if (gatt != null) {
+				gatt.close();
+			}
+		}
+	}
+
+	@Override
+	public void closeAll() {
+
+		if (connectResults != null && connectResults.size() > 0) {
+			Set<Entry<String, ConnectInfo>> entrySet = connectResults
+					.entrySet();
+			Iterator<Entry<String, ConnectInfo>> iter = entrySet.iterator();
+			while (iter.hasNext()) {
+				Entry<String, ConnectInfo> next = iter.next();
+				ConnectInfo info = next.getValue();
+				BluetoothGatt gatt = info.getGatt();
+				if (gatt != null) {
+					gatt.close();
+				}
+			}
+		}
+		connectResults.clear();
+	}
+
+	// protected HashMap<String,BluetoothDevice> scanDevices = new
+	// HashMap<String, BluetoothDevice>();
+
+	public void setOnBlueChangedListener(
+			OnBlueChangedListener mOnBlueChangedListener) {
+		this.mOnBlueChangedListener = mOnBlueChangedListener;
+	}
+
+	private void removeDevice(String address) {
+		synchronized (connectResults) {
+			if (connectResults.containsKey(address)) {
+				ConnectInfo result = connectResults.get(address);
+				result.setState(BluetoothProfile.STATE_DISCONNECTED);
+				if (result != null) {
+					BluetoothGatt gatt = result.getGatt();
+					gatt.close();
+					gatt = null;
+				}
+				connectResults.remove(address);
+			}
+		}
+	}
+
+	private BluetoothGattCharacteristic getBluetoothGattCharacteristic(
+			BluetoothGatt gatt) {
+		if (gatt == null) {
+			XLog.e("SimpleLaputaBlue", "-->gatt为空");
+			return null;
+		}
+		BluetoothGattService service = gatt.getService(UUID
+				.fromString(configration.UUID_SERVICE));
+		if (service == null) {
+			XLog.e("SimpleLaputaBlue", "-->service为空");
+			return null;
+		}
+		BluetoothGattCharacteristic characteristic = service
+				.getCharacteristic(UUID
+						.fromString(configration.UUID_CHARACTERISTIC_WRITE));
+		if (characteristic == null) {
+			XLog.e("SimpleLaputaBlue", "-->characteristic为空");
+			return null;
+		}
+		return characteristic;
+	}
+
+	private void reconnect(ArrayList<BluetoothDevice> scanDevices) {
+		if (scanDevices != null && scanDevices.size() > 0) {
+			String addressA = BondedDeviceUtil.get(1, mContext);
+			String addressB = BondedDeviceUtil.get(2, mContext);
+
+			XLog.e(SimpleLaputaBlue.class, "reconnect() --> addressA :"
+					+ addressA + ",是否连接:" + isConnected(addressA));
+			XLog.e(SimpleLaputaBlue.class, "reconnect() --> addressB :"
+					+ addressB + ",是否连接:" + isConnected(addressB));
+			for (BluetoothDevice device : scanDevices) {
+				if (!isConnected(addressA)
+						&& device.getAddress().equals(addressA)) {
+					connect(device);
+				}
+
+				// if (!isConnected(addressB)
+				// && device.getAddress().equals(addressB)) {
+				// connect(device);
+				// }
+			}
+			for (BluetoothDevice device : scanDevices) {
+				// if (!isConnected(addressA)
+				// && device.getAddress().equals(addressA)) {
+				// connect(device);
+				// }
+
+				if (!isConnected(addressB)
+						&& device.getAddress().equals(addressB)) {
+					connect(device);
+				}
+			}
+
+		}
+
+	}
+
+	@Override
+	public boolean isAllConnected() {
+		String addressA = BondedDeviceUtil.get(1, mContext);
+		String addressB = BondedDeviceUtil.get(2, mContext);
+		if (addressA.equals("") && addressB.equals("")) {
+			return false;
+		}
+		if (!isConnected(addressA) || isConnected(addressB)) {
+			return false;
+		}
+		return true;
+	}
+
+	@Override
+	public boolean isConnected(String address) {
+		if (connectResults.containsKey(address)) {
+			ConnectInfo connectInfo = connectResults.get(address);
+			return connectInfo.getState() == STATE_SERVICE_DISCOVERED;
+		}
+		return false;
+	}
+}

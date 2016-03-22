@@ -1,0 +1,15 @@
+1458264745825	Rename type 'LaputaAlertDialog'
+1458265794901	Delete element
+1458266736038	Convert local variable 'tvMsg' to field
+1458266773787	Convert local variable 'windowManager' to field
+1458268158288	Copy file
+1458268914358	Rename resource 'actionsheet_dialog_in.xml'
+1458268920885	Rename resource 'actionsheet_dialog_out.xml'
+1458268984028	Rename field 'XplAlertDialog'
+1458269002435	Rename field 'ActionSheetDialogAnimation'
+1458269207895	Rename resource 'dialog_in.xml'
+1458269215870	Rename resource 'dialog_out.xml'
+1458269315447	Delete element
+1458269335181	Rename resource 'l_dialog_in.xml'
+1458269342600	Rename resource 'l_dialog_out.xml'
+1458269377683	Delete elements
